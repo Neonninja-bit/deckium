@@ -1,9 +1,15 @@
-const { ApplicationCommandOptionType, EmbedBuilder } = require("discord.js");
+const { ApplicationCommandOptionType, AttachmentBuilder, EmbedBuilder } = require("discord.js");
+const sharp = require("sharp");
+const fetch = require("node-fetch"); // npm install node-fetch@2
+const path = require("path");
 const Card = require("../../schemas/cards.js");
 const UserProfile = require("../../schemas/Userprofile.js");
 
 module.exports = {
     run: async ({ interaction }) => {
+
+        await interaction.deferReply();
+
         const cardCode = interaction.options.getString("code").toUpperCase();
         const card = await Card.findOne({ code: cardCode });
 
@@ -25,28 +31,69 @@ module.exports = {
             await userProfile.save();
         }
 
-        // Check if the user owns the card
-        const hasCard = userProfile.cards.some(c => c.cardId && c.cardId._id.toString() === card._id.toString());
+        // Find the actual card in user's collection
+        const userCard = userProfile.cards.find(c => c.cardId && c.cardId.toString() === card._id.toString());
+        const level = userCard?.level || 1; // exact stored level
 
-        // Build the embed
+        // --- Fetch the card image from URL ---
+const response = await fetch(card.image);
+if (!response.ok) return interaction.editReply("❌ Failed to fetch card image.");
+const cardImageBuffer = await response.buffer();
+
+// --- Get actual image dimensions ---
+const metadata = await sharp(cardImageBuffer).metadata();
+const width = metadata.width;
+const height = metadata.height;
+
+// --- Calculate positions ---
+const centerX = width / 2;
+const bottomY = height - 52;
+
+// --- Create SVG overlay ---
+const svgText = `
+<svg width="${width}" height="${height}">
+  <style>
+    @font-face {
+      font-family: 'Greater Theory';
+      src: url('file://${path.join(__dirname, "../../fonts/GreaterTheory.otf")}');
+    }
+    .code { fill: #000000ff; font-size: 40px; font-family: 'Greater Theory'; text-anchor: end; }
+    .level { fill: #00FF00; font-size: 40px; font-family: 'Greater Theory'; text-anchor: start; }
+  </style>
+  <text x="${centerX - 10}" y="${bottomY}" class="code">${card.code}</text>
+  <text x="${centerX + 50}" y="${bottomY}" class="level">${level}</text>
+</svg>
+`;
+
+// --- Composite SVG on card image with Sharp ---
+const finalBuffer = await sharp(cardImageBuffer)
+    .composite([{ input: Buffer.from(svgText), top: 0, left: 0 }])
+    .png()
+    .toBuffer();
+
+
+
+// Convert Sharp result to Discord attachment
+const attachment = new AttachmentBuilder(finalBuffer, { name: `${card.code}_card.png` });
+
+        // --- Send embed ---
         const embed = new EmbedBuilder()
-            .setTitle(`**${card.name}**`)
-            .setURL(`https://example.com/cards/${card.code}`)
             .setDescription(`
-            An official card from the **${card.name}** collection.
-            
-            <:854998stars:1429756376661364817> **Rarity:** \`${card.rarity}\`
-            <a:4297pepehacker:1429756834255999057> **Code:** \`${card.code}\`
-            <a:98074money:1429747976825471016> **Price:** **⬡** ${card.price}
-            `)
-            .setImage(card.image)
+<:854998stars:1429756376661364817> **Rarity:** \`${card.rarity}\`
+<a:98074money:1429747976825471016> **Price:** **⬡** ${card.price}
+`)
             .setColor(card.rarity === "Impossible" ? "#FFD700" : "#C0C0C0")
             .setFooter({
-                text: hasCard ? "✅ You have this card" : "❌ You don't have this card",
+                text: userCard ? "✅ You have this card" : "❌ You don't have this card",
             })
-            .setTimestamp();
+            .setTimestamp()
+            .setImage(`attachment://${card.code}_card.png`);
 
-        await interaction.reply({ embeds: [embed] });
+        // Send embed with the image
+await interaction.editReply({
+    embeds: [embed],
+    files: [attachment],
+});
     },
 
     data: {
