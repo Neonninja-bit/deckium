@@ -19,7 +19,7 @@ module.exports = {
             .setTitle(`🤖 ${client.user.username} Information`)
             .setThumbnail(client.user.displayAvatarURL())
             .addFields(
-                { name: "📡 Ping", value: `${ping}ms`, inline: true },
+                { name: "📡 Pong", value: `${ping}ms`, inline: true },
                 { name: "⏱ Uptime", value: uptime, inline: true },
                 { name: "🧠 Memory", value: `${memoryUsage} MB`, inline: true },
                 { name: "💻 System", value: `${platform} (${os.arch()})`, inline: true },
