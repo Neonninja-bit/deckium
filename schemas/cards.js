@@ -18,11 +18,6 @@ const cardSchema = new Schema({
         required: true,
         unique: true,   // 👈 ensures no duplicate codes
     },
-    rate: {
-        type: Number,
-        required: true,
-        unique: true,
-    },
     price: {
         type: Number,
         required: true,
