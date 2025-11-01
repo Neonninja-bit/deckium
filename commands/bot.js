@@ -26,7 +26,7 @@ module.exports = {
                 { name: "🪄 Node.js", value: process.version, inline: true },
                 { name: "📦 Discord.js", value: require("discord.js").version, inline: true }
             )
-            .setFooter({ text: ` Look AT THT, Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
+            .setFooter({ text: ` Test, Requested by ${interaction.user.tag}`, iconURL: interaction.user.displayAvatarURL() })
             .setTimestamp();
 
         await interaction.reply({ embeds: [embed] });
